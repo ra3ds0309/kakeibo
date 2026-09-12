@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
+<meta name="theme-color" content="#0B0F1A" />
+<title>Kactuif家計簿</title>
+
+<!-- Tailwind CSS (CDN版・ビルド不要) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          base: {
+            bg: '#0B0F1A',
+            surface: '#141B2C',
+            surface2: '#1C2438',
+            border: '#26304A',
+            text: '#E7EAF2',
+            subtext: '#8B93A7'
+          }
+        },
+        borderRadius: { card: '20px' }
+      }
+    }
+  }
+</script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+<!-- React (CDN版) -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<!-- ブラウザ上でJSXを変換（ビルド不要にするため） -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- Supabaseクライアント -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body, #root { height: 100%; }
+  body { font-family: "Zen Kaku Gothic New", "Hiragino Sans", sans-serif; background:#0B0F1A; overscroll-behavior-y: none; }
+  ::-webkit-scrollbar { display: none; }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-top { padding-top: env(safe-area-inset-top); }
+</style>
+</head>
+<body class="bg-base-bg text-base-text">
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+
+/* =========================================================
+   ★★★ ここにSupabaseの接続情報を入力してください ★★★
+   Supabase管理画面 > Settings > API で確認できます。
+   ========================================================= */
+const SUPABASE_URL = "https://xxxxxxxxxxxx.supabase.co";
+const SUPABASE_ANON_KEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const { useState, useEffect, useMemo, useCallback } = React;
+
+/* ---------- 共通ユーティリティ ---------- */
+function formatYen(n) {
+  return `¥${Math.round(n || 0).toLocaleString('ja-JP')}`;
+}
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+function hexToRgba(hex, alpha) {
+  const clean = hex.replace('#', '');
+  const num = parseInt(clean, 16);
+  const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+function monthKey(dateStr) { return dateStr.slice(0, 7); }
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+/* ---------- 簡易アイコン（SVG） ---------- */
+const Icon = {
+  home: (p) => <svg viewBox="0 0 24 24" width={p.size||20} height={p.size||20} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>,
+  list: (p) => <svg viewBox="0 0 24 24" width={p.size||20} height={p.size||20} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={p.className}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>,
+  settings: (p) => <svg viewBox="0 0 24 24" width={p.size||20} height={p.size||20} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>,
+  plus: (p) => <svg viewBox="0 0 24 24" width={p.size||24} height={p.size||24} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className={p.className}><path d="M12 5v14M5 12h14"/></svg>,
+  x: (p) => <svg viewBox="0 0 24 24" width={p.size||20} height={p.size||20} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={p.className}><path d="M18 6 6 18M6 6l12 12"/></svg>,
+  up: (p) => <svg viewBox="0 0 24 24" width={p.size||16} height={p.size||16} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M23 6 13.5 15.5 8.5 10.5 1 18"/><path d="M17 6h6v6"/></svg>,
+  down: (p) => <svg viewBox="0 0 24 24" width={p.size||16} height={p.size||16} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M23 18 13.5 8.5 8.5 13.5 1 6"/><path d="M17 18h6v-6"/></svg>,
+  swap: (p) => <svg viewBox="0 0 24 24" width={p.size||16} height={p.size||16} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>,
+  trash: (p) => <svg viewBox="0 0 24 24" width={p.size||15} height={p.size||15} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14Z"/></svg>,
+  del: (p) => <svg viewBox="0 0 24 24" width={p.size||18} height={p.size||18} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={p.className}><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"/><path d="M18 9 12 15M12 9l6 6"/></svg>,
+};
+
+const PALETTE = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
+
+/* =========================================================
+   データ層：Supabaseとのやり取りをまとめたフック
+   ========================================================= */
+function useBudgetData() {
+  const [accounts, setAccounts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [accRes, catRes, txRes] = await Promise.all([
+        sb.from('accounts').select('*').order('created_at', { ascending: true }),
+        sb.from('categories').select('*').order('created_at', { ascending: true }),
+        sb.from('transactions').select('*')
+          .order('transaction_date', { ascending: false })
+          .order('created_at', { ascending: false })
+      ]);
+      if (accRes.error) throw accRes.error;
+      if (catRes.error) throw catRes.error;
+      if (txRes.error) throw txRes.error;
+      setAccounts(accRes.data || []);
+      setCategories(catRes.data || []);
+      setTransactions(txRes.data || []);
+    } catch (e) {
+      setError(e.message || 'データの取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const accountsById = useMemo(() => {
+    const m = new Map(); accounts.forEach(a => m.set(a.id, a)); return m;
+  }, [accounts]);
+  const categoriesById = useMemo(() => {
+    const m = new Map(); categories.forEach(c => m.set(c.id, c)); return m;
+  }, [categories]);
+
+  const txWithRelations = useMemo(() => transactions.map(t => ({
+    ...t,
+    account: accountsById.get(t.account_id) || null,
+    transfer_to_account: t.transfer_to_account_id ? (accountsById.get(t.transfer_to_account_id) || null) : null,
+    category: t.category_id ? (categoriesById.get(t.category_id) || null) : null,
+  })), [transactions, accountsById, categoriesById]);
+
+  const balances = useMemo(() => accounts.map(account => {
+    let income = 0, expense = 0, transferIn = 0, transferOut = 0;
+    for (const t of transactions) {
+      if (t.type === 'income' && t.account_id === account.id) income += t.amount;
+      else if (t.type === 'expense' && t.account_id === account.id) expense += t.amount;
+      else if (t.type === 'transfer') {
+        if (t.account_id === account.id) transferOut += t.amount;
+        if (t.transfer_to_account_id === account.id) transferIn += t.amount;
+      }
+    }
+    return { account, income, expense, transferIn, transferOut, balance: income - expense - transferOut + transferIn };
+  }), [accounts, transactions]);
+
+  const addTransaction = useCallback(async (input) => {
+    const { error } = await sb.from('transactions').insert(input);
+    if (error) throw error;
+    await fetchAll();
+  }, [fetchAll]);
+
+  const updateTransaction = useCallback(async (id, input) => {
+    const { error } = await sb.from('transactions').update(input).eq('id', id);
+    if (error) throw error;
+    await fetchAll();
+  }, [fetchAll]);
+
+  const deleteTransaction = useCallback(async (id) => {
+    const { error } = await sb.from('transactions').delete().eq('id', id);
+    if (error) throw error;
+    await fetchAll();
+  }, [fetchAll]);
+
+  const addCategory = useCallback(async (input) => {
+    const { error } = await sb.from('categories').insert(input);
+    if (error) throw error;
+    await fetchAll();
+  }, [fetchAll]);
+
+  const deleteCategory = useCallback(async (id) => {
+    const { error } = await sb.from('categories').delete().eq('id', id);
+    if (error) throw error;
+    await fetchAll();
+  }, [fetchAll]);
+
+  return { accounts, categories, transactions, txWithRelations, balances, loading, error,
+    addTransaction, updateTransaction, deleteTransaction, addCategory, deleteCategory };
+}
+
+/* =========================================================
+   ボトムナビゲーション
+   ========================================================= */
+function BottomNav({ active, onNavigate, onQuickAdd }) {
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-base-border bg-base-surface/95 backdrop-blur safe-bottom">
+      <div className="mx-auto grid max-w-md grid-cols-4 items-end px-2 py-2">
+        <NavButton label="ホーム" icon={<Icon.home size={22} />} active={active==='dashboard'} onClick={()=>onNavigate('dashboard')} />
+        <div className="flex justify-center">
+          <button onClick={onQuickAdd} aria-label="収支・振替を入力"
+            className="-mt-9 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-900/40 active:scale-95 transition-transform">
+            <Icon.plus size={28} />
+          </button>
+        </div>
+        <NavButton label="履歴" icon={<Icon.list size={22} />} active={active==='history'} onClick={()=>onNavigate('history')} />
+        <NavButton label="設定" icon={<Icon.settings size={22} />} active={active==='settings'} onClick={()=>onNavigate('settings')} />
+      </div>
+    </nav>
+  );
+}
+function NavButton({ label, icon, active, onClick }) {
+  return (
+    <button onClick={onClick} className={`mx-auto flex flex-col items-center gap-1 px-4 py-1.5 transition-colors ${active ? 'text-white' : 'text-base-subtext'}`}>
+      {icon}<span className="text-[11px]">{label}</span>
+    </button>
+  );
+}
+
+/* =========================================================
+   ダッシュボード
+   ========================================================= */
+function AccountTabs({ accounts, selected, onSelect }) {
+  return (
+    <div className="flex gap-2 overflow-x-auto px-4 pt-2 pb-1 -mx-1">
+      <TabChip label="全体サマリー" active={selected==='all'} color="#94A3B8" onClick={()=>onSelect('all')} />
+      {accounts.map(a => (
+        <TabChip key={a.id} label={a.name} active={selected===a.id} color={a.color} onClick={()=>onSelect(a.id)} />
+      ))}
+    </div>
+  );
+}
+function TabChip({ label, active, color, onClick }) {
+  return (
+    <button onClick={onClick} className="whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors"
+      style={active ? { backgroundColor: color, borderColor: color, color: '#0B0F1A' } : { backgroundColor: hexToRgba(color, 0.08), borderColor: hexToRgba(color, 0.35), color: '#E7EAF2' }}>
+      {label}
+    </button>
+  );
+}
+
+function BalanceCard({ label, color, balance, income, expense }) {
+  return (
+    <div className="mx-4 mt-3 rounded-card p-5 shadow-lg" style={{
+      background: `linear-gradient(135deg, ${hexToRgba(color,0.22)}, ${hexToRgba(color,0.05)})`,
+      border: `1px solid ${hexToRgba(color,0.35)}`
+    }}>
+      <p className="text-sm text-base-subtext">{label}・残高</p>
+      <p className="mt-1 text-4xl font-bold tracking-tight text-white">{formatYen(balance)}</p>
+      <div className="mt-4 flex gap-4">
+        <div className="flex items-center gap-1.5 text-sm">
+          <Icon.up size={16} className="text-emerald-400" />
+          <span className="text-base-subtext">今月収入</span>
+          <span className="font-medium text-white">{formatYen(income)}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-sm">
+          <Icon.down size={16} className="text-rose-400" />
+          <span className="text-base-subtext">今月支出</span>
+          <span className="font-medium text-white">{formatYen(expense)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExpenseBreakdown({ transactions }) {
+  const map = new Map();
+  transactions.filter(t => t.type === 'expense').forEach(t => {
+    const key = t.category?.name || 'その他';
+    map.set(key, (map.get(key) || 0) + t.amount);
+  });
+  const data = Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a,b)=>b.value-a.value);
+  if (data.length === 0) {
+    return <div className="mx-4 mt-6 rounded-card border border-dashed border-base-border p-6 text-center text-sm text-base-subtext">今月の支出はまだありません</div>;
+  }
+  const total = data.reduce((s,d)=>s+d.value,0);
+  return (
+    <div className="mx-4 mt-6 rounded-card border border-base-border bg-base-surface p-4">
+      <p className="mb-3 text-sm font-medium text-base-subtext">今月の支出内訳</p>
+      <ul className="space-y-2.5">
+        {data.slice(0,6).map((d,i) => (
+          <li key={d.name}>
+            <div className="mb-1 flex items-center justify-between text-xs">
+              <span className="text-white">{d.name}</span>
+              <span className="text-base-subtext">{formatYen(d.value)}（{Math.round(d.value/total*100)}%）</span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-base-surface2">
+              <div className="h-full rounded-full" style={{ width: `${d.value/total*100}%`, backgroundColor: PALETTE[i % PALETTE.length] }} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function IconBadge({ type, color }) {
+  const icon = type === 'income' ? <Icon.up /> : type === 'expense' ? <Icon.down /> : <Icon.swap />;
+  return <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${color}26`, color }}>{icon}</div>;
+}
+
+function TransactionList({ items, emptyMessage, onSelect }) {
+  if (items.length === 0) {
+    return <div className="mx-4 mt-2 rounded-card border border-dashed border-base-border p-6 text-center text-sm text-base-subtext">{emptyMessage || 'まだ明細がありません'}</div>;
+  }
+  return (
+    <ul className="mx-4 mt-2 divide-y divide-base-border overflow-hidden rounded-card border border-base-border bg-base-surface">
+      {items.map(t => (
+        <li key={t.id}>
+          <button onClick={() => onSelect && onSelect(t)} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-base-surface2">
+            <IconBadge type={t.type} color={t.account?.color || '#94A3B8'} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white">
+                {t.type === 'transfer' ? `${t.account?.name || '-'} → ${t.transfer_to_account?.name || '-'}` : (t.category?.name || t.account?.name || '未分類')}
+              </p>
+              <p className="truncate text-xs text-base-subtext">{formatDate(t.transaction_date)}{t.memo ? ` ・ ${t.memo}` : ''}</p>
+            </div>
+            <span className={`shrink-0 text-sm font-semibold ${t.type==='income'?'text-emerald-400':t.type==='expense'?'text-rose-400':'text-base-subtext'}`}>
+              {t.type === 'expense' ? '-' : t.type === 'income' ? '+' : ''}{formatYen(t.amount)}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Dashboard({ balances, transactions, loading, onSelectTransaction }) {
+  const [selected, setSelected] = useState('all');
+  const accounts = balances.map(b => b.account);
+
+  const isThisMonth = (d) => { const dt = new Date(d), now = new Date(); return dt.getFullYear()===now.getFullYear() && dt.getMonth()===now.getMonth(); };
+  const monthly = useMemo(() => transactions.filter(t => isThisMonth(t.transaction_date)), [transactions]);
+
+  const scopedRecent = useMemo(() => {
+    const base = selected === 'all' ? transactions : transactions.filter(t => t.account_id === selected || t.transfer_to_account_id === selected);
+    return base.slice(0, 5);
+  }, [transactions, selected]);
+
+  const scopedMonthly = useMemo(() => selected === 'all' ? monthly : monthly.filter(t => t.account_id === selected), [monthly, selected]);
+
+  const scopedBalance = selected === 'all'
+    ? balances.reduce((acc,b)=>({balance:acc.balance+b.balance, income:acc.income+b.income, expense:acc.expense+b.expense}), {balance:0,income:0,expense:0})
+    : (() => { const f = balances.find(b=>b.account.id===selected); return f ? {balance:f.balance, income:f.income, expense:f.expense} : {balance:0,income:0,expense:0}; })();
+
+  const monthlyIncome = scopedMonthly.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const monthlyExpense = scopedMonthly.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+
+  const label = selected==='all' ? '全体' : (balances.find(b=>b.account.id===selected)?.account.name || '');
+  const color = selected==='all' ? '#94A3B8' : (balances.find(b=>b.account.id===selected)?.account.color || '#94A3B8');
+
+  if (loading) return <div className="flex h-64 items-center justify-center text-base-subtext">読み込み中…</div>;
+
+  return (
+    <div className="pb-4">
+      <header className="px-4 pt-5"><h1 className="text-xl font-bold text-white">ダッシュボード</h1></header>
+      <AccountTabs accounts={accounts} selected={selected} onSelect={setSelected} />
+      <BalanceCard label={label} color={color} balance={scopedBalance.balance} income={monthlyIncome} expense={monthlyExpense} />
+      <ExpenseBreakdown transactions={scopedMonthly} />
+      <div className="mx-4 mt-6 mb-2"><p className="text-sm font-medium text-base-subtext">直近の取引</p></div>
+      <TransactionList items={scopedRecent} onSelect={onSelectTransaction} />
+    </div>
+  );
+}
+
+/* =========================================================
+   履歴画面
+   ========================================================= */
+function History({ accounts, transactions, onSelectTransaction }) {
+  const months = useMemo(() => Array.from(new Set(transactions.map(t=>monthKey(t.transaction_date)))).sort().reverse(), [transactions]);
+  const [month, setMonth] = useState(months[0] || monthKey(todayStr()));
+  const [accountFilter, setAccountFilter] = useState('all');
+
+  useEffect(() => { if (months.length && !months.includes(month)) setMonth(months[0]); }, [months]);
+
+  const filtered = useMemo(() => transactions.filter(t => {
+    const okMonth = monthKey(t.transaction_date) === month;
+    const okAccount = accountFilter==='all' || t.account_id===accountFilter || t.transfer_to_account_id===accountFilter;
+    return okMonth && okAccount;
+  }), [transactions, month, accountFilter]);
+
+  const grouped = useMemo(() => {
+    const map = new Map();
+    filtered.forEach(t => { const k=t.transaction_date; if(!map.has(k)) map.set(k,[]); map.get(k).push(t); });
+    return Array.from(map.entries()).sort((a,b)=> a[0]<b[0]?1:-1);
+  }, [filtered]);
+
+  const total = filtered.reduce((s,t)=> t.type==='income'?s+t.amount : t.type==='expense'?s-t.amount : s, 0);
+
+  return (
+    <div className="pb-4">
+      <header className="px-4 pt-5"><h1 className="text-xl font-bold text-white">履歴</h1></header>
+      <div className="mt-3 flex gap-2 px-4">
+        <select value={month} onChange={e=>setMonth(e.target.value)} className="flex-1 rounded-xl border border-base-border bg-base-surface px-3 py-2 text-sm text-white">
+          {months.length===0 && <option value={month}>{month}</option>}
+          {months.map(m => <option key={m} value={m}>{m.replace('-','年')}月</option>)}
+        </select>
+        <select value={accountFilter} onChange={e=>setAccountFilter(e.target.value)} className="flex-1 rounded-xl border border-base-border bg-base-surface px-3 py-2 text-sm text-white">
+          <option value="all">すべての口座</option>
+          {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+      </div>
+      <div className="mx-4 mt-3 flex items-center justify-between rounded-xl border border-base-border bg-base-surface px-4 py-2.5">
+        <span className="text-sm text-base-subtext">この期間の収支</span>
+        <span className={`text-base font-semibold ${total>=0?'text-emerald-400':'text-rose-400'}`}>{total>=0?'+':''}{formatYen(total)}</span>
+      </div>
+      {grouped.length===0 && <p className="mt-8 text-center text-sm text-base-subtext">該当する明細がありません</p>}
+      <div className="mt-4 space-y-4 px-4">
+        {grouped.map(([date, items]) => (
+          <div key={date}>
+            <p className="mb-1.5 text-xs font-medium text-base-subtext">{formatDate(date)}</p>
+            <TransactionList items={items} onSelect={onSelectTransaction} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   設定画面（カテゴリ管理）
+   ========================================================= */
+function AccountCategorySection({ account, categories, onAddCategory, onDeleteCategory }) {
+  const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState('expense');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setSubmitting(true);
+    try {
+      await onAddCategory({ account_code: account.code, type: newType, name: newName.trim() });
+      setNewName('');
+    } finally { setSubmitting(false); }
+  }
+
+  return (
+    <div className="rounded-card border p-4" style={{ borderColor: `${account.color}55`, backgroundColor: `${account.color}0F` }}>
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: account.color }} />
+        <h2 className="text-sm font-semibold text-white">{account.name}</h2>
+      </div>
+      <ul className="mt-3 space-y-1.5">
+        {categories.length===0 && <li className="text-xs text-base-subtext">カテゴリがまだありません</li>}
+        {categories.map(c => (
+          <li key={c.id} className="flex items-center justify-between rounded-lg bg-base-surface px-3 py-2 text-sm">
+            <span className="text-white">{c.name}<span className="ml-2 text-xs text-base-subtext">{c.type==='income'?'収入':'支出'}</span></span>
+            <button onClick={()=>onDeleteCategory(c.id)} aria-label="カテゴリを削除" className="p-1 text-base-subtext hover:text-rose-400"><Icon.trash /></button>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-3 flex gap-2">
+        <select value={newType} onChange={e=>setNewType(e.target.value)} className="rounded-lg border border-base-border bg-base-surface px-2 text-xs text-white">
+          <option value="expense">支出</option>
+          <option value="income">収入</option>
+        </select>
+        <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="新しいカテゴリ名"
+          className="min-w-0 flex-1 rounded-lg border border-base-border bg-base-surface px-3 py-1.5 text-sm text-white placeholder:text-base-subtext" />
+        <button onClick={handleAdd} disabled={submitting || !newName.trim()} aria-label="カテゴリを追加"
+          className="flex items-center justify-center rounded-lg bg-blue-600 px-3 text-white disabled:opacity-50"><Icon.plus size={16} /></button>
+      </div>
+    </div>
+  );
+}
+
+function Settings({ accounts, categories, onAddCategory, onDeleteCategory }) {
+  return (
+    <div className="pb-4">
+      <header className="px-4 pt-5">
+        <h1 className="text-xl font-bold text-white">設定</h1>
+        <p className="mt-1 text-sm text-base-subtext">口座ごとのカテゴリを管理できます</p>
+      </header>
+      <div className="mt-4 space-y-5 px-4">
+        {accounts.map(a => (
+          <AccountCategorySection key={a.id} account={a} categories={categories.filter(c=>c.account_code===a.code)}
+            onAddCategory={onAddCategory} onDeleteCategory={onDeleteCategory} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   収支・振替 入力フォーム（モーダル）
+   ========================================================= */
+const MODE_META = {
+  expense: { label: '支出', icon: <Icon.down size={18} />, color: '#F43F5E' },
+  income: { label: '収入', icon: <Icon.up size={18} />, color: '#10B981' },
+  transfer: { label: '振替', icon: <Icon.swap size={18} />, color: '#3B82F6' },
+};
+const KEYPAD_KEYS = ['1','2','3','4','5','6','7','8','9','00','0','DEL'];
+
+function TransactionForm({ accounts, categories, initial, onClose, onSubmit, onDelete }) {
+  const isEdit = Boolean(initial);
+  const [mode, setMode] = useState(initial?.type || 'expense');
+  const [amountStr, setAmountStr] = useState(initial ? String(initial.amount) : '');
+  const [accountId, setAccountId] = useState(initial?.account_id || accounts[0]?.id || '');
+  const [toAccountId, setToAccountId] = useState(initial?.transfer_to_account_id || accounts[1]?.id || accounts[0]?.id || '');
+  const [categoryId, setCategoryId] = useState(initial?.category_id || '');
+  const [date, setDate] = useState(initial?.transaction_date || todayStr());
+  const [memo, setMemo] = useState(initial?.memo || '');
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  const selectedAccount = accounts.find(a => a.id === accountId);
+  const availableCategories = useMemo(() => {
+    if (mode === 'transfer' || !selectedAccount) return [];
+    return categories.filter(c => c.account_code === selectedAccount.code && c.type === mode);
+  }, [categories, selectedAccount, mode]);
+
+  const amount = Number(amountStr || '0');
+
+  function handleKey(key) {
+    setFormError(null);
+    if (key === 'DEL') { setAmountStr(s => s.slice(0, -1)); return; }
+    setAmountStr(s => { const next = s + key; return next.length > 9 ? s : next; });
+  }
+  function handleModeChange(next) { setMode(next); setCategoryId(''); setFormError(null); }
+
+  async function handleSubmit() {
+    setFormError(null);
+    if (amount <= 0) return setFormError('金額を入力してください');
+    if (!accountId) return setFormError('口座を選択してください');
+    if (mode === 'transfer' && accountId === toAccountId) return setFormError('振替元と振替先は別の口座を選んでください');
+    if (mode !== 'transfer' && availableCategories.length > 0 && !categoryId) return setFormError('カテゴリを選択してください');
+
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        transaction_date: date,
+        account_id: accountId,
+        transfer_to_account_id: mode === 'transfer' ? toAccountId : null,
+        category_id: mode === 'transfer' ? null : (categoryId || null),
+        type: mode,
+        amount,
+        memo: memo || null,
+      });
+      onClose();
+    } catch (e) {
+      setFormError(e.message || '保存に失敗しました');
+    } finally { setSubmitting(false); }
+  }
+
+  async function handleDelete() {
+    if (!initial || !onDelete) return;
+    if (!window.confirm('この明細を削除しますか？')) return;
+    setDeleting(true);
+    try { await onDelete(initial.id); onClose(); }
+    catch (e) { setFormError(e.message || '削除に失敗しました'); }
+    finally { setDeleting(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-base-bg">
+      <div className="flex items-center justify-between border-b border-base-border px-4 py-3 safe-top">
+        <button onClick={onClose} aria-label="閉じる" className="p-1 text-base-subtext"><Icon.x size={22} /></button>
+        <p className="text-sm font-medium text-white">{isEdit ? '明細を編集' : '収支・振替を入力'}</p>
+        <div className="w-8" />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {Object.keys(MODE_META).map(m => (
+            <button key={m} onClick={()=>handleModeChange(m)}
+              className="flex items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-medium transition-colors"
+              style={mode===m ? {backgroundColor:MODE_META[m].color, borderColor:MODE_META[m].color, color:'#fff'} : {borderColor:'#26304A', color:'#8B93A7'}}>
+              {MODE_META[m].icon}{MODE_META[m].label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 rounded-card border border-base-border bg-base-surface px-4 py-5 text-right">
+          <p className="text-3xl font-bold text-white">{formatYen(amount)}</p>
+        </div>
+
+        <div className="mt-4">
+          <label className="text-xs font-medium text-base-subtext">{mode==='transfer' ? '振替元' : '口座'}</label>
+          <div className="mt-1.5 grid grid-cols-3 gap-2">
+            {accounts.map(a => (
+              <AccountPill key={a.id} account={a} active={accountId===a.id} onClick={()=>{setAccountId(a.id); setCategoryId('');}} />
+            ))}
+          </div>
+        </div>
+
+        {mode === 'transfer' && (
+          <div className="mt-4">
+            <label className="text-xs font-medium text-base-subtext">振替先</label>
+            <div className="mt-1.5 grid grid-cols-3 gap-2">
+              {accounts.map(a => (
+                <AccountPill key={a.id} account={a} active={toAccountId===a.id} disabled={a.id===accountId} onClick={()=>setToAccountId(a.id)} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {mode !== 'transfer' && (
+          <div className="mt-4">
+            <label className="text-xs font-medium text-base-subtext">カテゴリ</label>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {availableCategories.length===0 && <p className="text-xs text-base-subtext">この口座のカテゴリがありません（設定から追加できます）</p>}
+              {availableCategories.map(c => (
+                <button key={c.id} onClick={()=>setCategoryId(c.id)} className="rounded-full border px-3 py-1.5 text-sm transition-colors"
+                  style={categoryId===c.id ? {backgroundColor:'#E7EAF2', borderColor:'#E7EAF2', color:'#0B0F1A'} : {borderColor:'#26304A', color:'#E7EAF2'}}>
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-base-subtext">日付</label>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+              className="mt-1.5 w-full rounded-xl border border-base-border bg-base-surface px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-base-subtext">メモ（任意）</label>
+            <input type="text" value={memo} onChange={e=>setMemo(e.target.value)} placeholder="例：サーバー代"
+              className="mt-1.5 w-full rounded-xl border border-base-border bg-base-surface px-3 py-2 text-sm text-white placeholder:text-base-subtext" />
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {KEYPAD_KEYS.map(key => (
+            <button key={key} onClick={()=>handleKey(key)} className="rounded-xl border border-base-border bg-base-surface py-3.5 text-lg font-medium text-white active:bg-base-surface2">
+              {key === 'DEL' ? <Icon.del size={18} className="mx-auto" /> : key}
+            </button>
+          ))}
+        </div>
+
+        {formError && <p className="mt-3 text-center text-sm text-rose-400">{formError}</p>}
+      </div>
+
+      <div className="flex gap-2 border-t border-base-border px-4 py-3 safe-bottom">
+        {isEdit && onDelete && (
+          <button onClick={handleDelete} disabled={deleting} className="rounded-xl border border-rose-500/40 px-4 py-3.5 text-sm font-medium text-rose-400 disabled:opacity-50">
+            {deleting ? '削除中…' : '削除'}
+          </button>
+        )}
+        <button onClick={handleSubmit} disabled={submitting} className="flex-1 rounded-xl bg-blue-600 py-3.5 text-center text-base font-semibold text-white disabled:opacity-50">
+          {submitting ? '保存中…' : (isEdit ? '更新する' : '保存する')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AccountPill({ account, active, disabled, onClick }) {
+  return (
+    <button onClick={onClick} disabled={disabled} className="rounded-xl border py-2 text-center text-xs font-medium transition-colors disabled:opacity-30"
+      style={active ? {backgroundColor:account.color, borderColor:account.color, color:'#0B0F1A'} : {borderColor:'#26304A', color:'#E7EAF2'}}>
+      {account.name}
+    </button>
+  );
+}
+
+/* =========================================================
+   アプリ本体
+   ========================================================= */
+function App() {
+  const { accounts, categories, txWithRelations, balances, loading, error,
+    addTransaction, updateTransaction, deleteTransaction, addCategory, deleteCategory } = useBudgetData();
+
+  const [view, setView] = useState('dashboard');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+
+  function openQuickAdd() { setEditing(null); setFormOpen(true); }
+  function openEdit(t) { setEditing(t); setFormOpen(true); }
+  function closeForm() { setFormOpen(false); setEditing(null); }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-md px-4 pt-10 text-center">
+        <p className="text-sm font-medium text-rose-400">エラーが発生しました</p>
+        <p className="mt-2 text-xs text-base-subtext">{error}</p>
+        <p className="mt-4 text-xs text-base-subtext">
+          このHTMLファイル冒頭の SUPABASE_URL / SUPABASE_ANON_KEY が正しく設定されているか確認してください。
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-full bg-base-bg">
+      <div className="mx-auto max-w-md min-h-full pb-28 safe-top">
+        {view === 'dashboard' && <Dashboard balances={balances} transactions={txWithRelations} loading={loading} onSelectTransaction={openEdit} />}
+        {view === 'history' && <History accounts={accounts} transactions={txWithRelations} onSelectTransaction={openEdit} />}
+        {view === 'settings' && <Settings accounts={accounts} categories={categories} onAddCategory={addCategory} onDeleteCategory={deleteCategory} />}
+        <BottomNav active={view} onNavigate={setView} onQuickAdd={openQuickAdd} />
+        {formOpen && (
+          <TransactionForm
+            accounts={accounts}
+            categories={categories}
+            initial={editing}
+            onClose={closeForm}
+            onSubmit={async (input) => {
+              if (editing) await updateTransaction(editing.id, input);
+              else await addTransaction(input);
+            }}
+            onDelete={editing ? deleteTransaction : undefined}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+</script>
+</body>
+</html>
