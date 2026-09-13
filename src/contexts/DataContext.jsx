@@ -89,6 +89,7 @@ export function DataProvider({ children }) {
       addCategory: (data) => addDoc(collection(db, 'users', uid, 'categories'), {
         ...data, order: categories.filter(c => c.type === data.type).length, createdAt: serverTimestamp()
       }),
+      deleteCategory: (id) => deleteDoc(doc(db, 'users', uid, 'categories', id)),
       addTransaction: (data) => addDoc(collection(db, 'users', uid, 'transactions'), {
         ...data, createdAt: serverTimestamp()
       }),

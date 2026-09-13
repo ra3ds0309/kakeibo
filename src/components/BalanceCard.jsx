@@ -34,7 +34,7 @@ export default function BalanceCard({ label, account, realBalance, income, expen
     <div className="balance-card">
       <div className="balance-card__label">{label} の残高</div>
       <div className="balance-card__amount">
-        ¥{formatYen(displayBalance)}<span className="unit">円</span>
+        ¥{formatYen(displayBalance)}
       </div>
 
       <div className="balance-card__breakdown">

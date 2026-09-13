@@ -129,7 +129,7 @@ function Shell() {
       )}
 
       {accountModalOpen && (
-        <AccountManagerModal accounts={accounts} settings={settings} onClose={() => setAccountModalOpen(false)} />
+        <AccountManagerModal accounts={accounts} categories={categories} settings={settings} onClose={() => setAccountModalOpen(false)} />
       )}
 
       {menuOpen && (
