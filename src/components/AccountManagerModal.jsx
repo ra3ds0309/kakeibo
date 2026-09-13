@@ -51,8 +51,14 @@ export default function AccountManagerModal({ accounts, onClose }) {
                 </span>
               )}
               <span style={{ display: 'flex', gap: 12 }}>
-                <button className="icon-btn" onClick={() => setEditingId(a.id)}>編集</button>
-                <button className="icon-btn" onClick={() => handleDelete(a.id)}>削除</button>
+                <button className="icon-btn" onClick={() => setEditingId(a.id)}>
+                  <span className="material-symbols-outlined">edit</span>
+                  編集
+                </button>
+                <button className="icon-btn" onClick={() => handleDelete(a.id)}>
+                  <span className="material-symbols-outlined">delete</span>
+                  削除
+                </button>
               </span>
             </div>
           ))}

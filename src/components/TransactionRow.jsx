@@ -1,6 +1,6 @@
 import { formatYen, formatDateLabel } from '../utils/format'
 
-const TYPE_ICON = { expense: '支', income: '収', transfer: '替' }
+const TYPE_ICON = { expense: 'shopping_cart', income: 'payments', transfer: 'swap_horiz' }
 const TYPE_SIGN = { expense: '-', income: '+', transfer: '' }
 
 export default function TransactionRow({ tx, categories, accounts, onClick }) {
@@ -18,7 +18,9 @@ export default function TransactionRow({ tx, categories, accounts, onClick }) {
 
   return (
     <div className="tx-row" onClick={onClick} role={onClick ? 'button' : undefined}>
-      <div className={`tx-row__icon tx-row__icon--${tx.type}`}>{TYPE_ICON[tx.type]}</div>
+      <div className={`tx-row__icon tx-row__icon--${tx.type}`}>
+        <span className="material-symbols-outlined">{TYPE_ICON[tx.type]}</span>
+      </div>
       <div className="tx-row__body">
         <div className="tx-row__category">{label}</div>
         <div className="tx-row__meta">{meta}</div>

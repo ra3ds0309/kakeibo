@@ -48,7 +48,9 @@ function Shell() {
       <div className="top-bar">
         <h1 className="top-bar__title">かけいぼ</h1>
         <button className="top-bar__user" onClick={() => confirm('ログアウトしますか？') && logout()}>
-          {user.photoURL && <img className="top-bar__avatar" src={user.photoURL} alt="" />}
+          {user.photoURL
+            ? <img className="top-bar__avatar" src={user.photoURL} alt="" />
+            : <span className="material-symbols-outlined">account_circle</span>}
           {user.displayName}
         </button>
       </div>
@@ -80,14 +82,16 @@ function Shell() {
         )}
       </div>
 
-      <button className="fab" onClick={openNew} aria-label="収支を入力">＋</button>
+      <button className="fab" onClick={openNew} aria-label="収支を入力">
+        <span className="material-symbols-outlined">add</span>
+      </button>
 
       <nav className="bottom-nav">
         <button
           className={`bottom-nav__item ${tab === 'dashboard' ? 'bottom-nav__item--active' : ''}`}
           onClick={() => setTab('dashboard')}
         >
-          <span className="bottom-nav__icon">🏠</span>
+          <span className="bottom-nav__icon material-symbols-outlined">home</span>
           ホーム
         </button>
         <div style={{ width: 58 }} />
@@ -95,7 +99,7 @@ function Shell() {
           className={`bottom-nav__item ${tab === 'history' ? 'bottom-nav__item--active' : ''}`}
           onClick={() => setTab('history')}
         >
-          <span className="bottom-nav__icon">📖</span>
+          <span className="bottom-nav__icon material-symbols-outlined">receipt_long</span>
           履歴
         </button>
       </nav>

@@ -1,5 +1,5 @@
 {
   "projects": {
-    "default": "kakeibo-d9ba7"
+    "default": "YOUR_FIREBASE_PROJECT_ID"
   }
 }

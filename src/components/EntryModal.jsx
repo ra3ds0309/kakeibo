@@ -4,9 +4,9 @@ import { formatYen, todayStr } from '../utils/format'
 import { useData } from '../contexts/DataContext'
 
 const MODES = [
-  { key: 'expense', label: '支出' },
-  { key: 'income', label: '収入' },
-  { key: 'transfer', label: '振替' }
+  { key: 'expense', label: '支出', icon: 'shopping_cart' },
+  { key: 'income', label: '収入', icon: 'payments' },
+  { key: 'transfer', label: '振替', icon: 'swap_horiz' }
 ]
 
 export default function EntryModal({ accounts, categories, defaultAccountId, initialTx, onClose, onDelete }) {
@@ -92,6 +92,7 @@ export default function EntryModal({ accounts, categories, defaultAccountId, ini
               onClick={() => { setMode(m.key); setCategoryId('') }}
               disabled={isEdit}
             >
+              <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 3 }}>{m.icon}</span>
               {m.label}
             </button>
           ))}
@@ -159,7 +160,10 @@ export default function EntryModal({ accounts, categories, defaultAccountId, ini
                     {c.name}
                   </button>
                 ))}
-                <button className="chip" onClick={() => setShowNewCategory(s => !s)}>＋ 新規</button>
+                <button className="chip" onClick={() => setShowNewCategory(s => !s)}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 15, marginRight: 2 }}>add</span>
+                  新規
+                </button>
               </div>
               {showNewCategory && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -201,6 +205,7 @@ export default function EntryModal({ accounts, categories, defaultAccountId, ini
             style={{ width: '100%', marginTop: 10 }}
             onClick={() => onDelete(initialTx.id)}
           >
+            <span className="material-symbols-outlined">delete</span>
             この明細を削除
           </button>
         )}

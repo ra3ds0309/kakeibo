@@ -19,7 +19,8 @@ export default function AccountTabs({ accounts, selected, onSelect, onAddClick }
         </button>
       ))}
       <button className="account-tab account-tab--add" onClick={onAddClick}>
-        ＋ 口座
+        <span className="material-symbols-outlined">add</span>
+        口座
       </button>
     </div>
   )
