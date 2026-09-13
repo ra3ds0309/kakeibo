@@ -81,8 +81,13 @@ export default function EntryModal({ accounts, categories, defaultAccountId, ini
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>
-        <div className="sheet__handle" />
-        <div className="sheet__title">{isEdit ? '明細を編集' : '入力'}</div>
+        <div className="sheet__handle" onClick={onClose} />
+        <div className="sheet__title-row">
+          <div className="sheet__title" style={{ flex: 1 }}>{isEdit ? '明細を編集' : '入力'}</div>
+          <button className="icon-btn" onClick={onClose} aria-label="閉じる">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
 
         <div className="mode-switch">
           {MODES.map(m => (

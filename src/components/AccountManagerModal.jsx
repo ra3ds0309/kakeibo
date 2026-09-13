@@ -3,7 +3,90 @@ import { useData } from '../contexts/DataContext'
 
 const COLORS = ['#3E5C7A', '#B8863B', '#3E7A5C', '#B5503D', '#8A6BA1', '#C97A9B', '#5C7A8A', '#1F3B36']
 
-export default function AccountManagerModal({ accounts, onClose }) {
+function AccountRow({ account, settings, onEditName }) {
+  const { updateAccount } = useData()
+  const [open, setOpen] = useState(false)
+  const [monthlyLimitInput, setMonthlyLimitInput] = useState(account.monthlyLimit ?? '')
+  const [saving, setSaving] = useState(false)
+
+  const showOptions = settings?.monthlyResetEnabled || settings?.monthlyLimitEnabled
+
+  async function toggleReset() {
+    setSaving(true)
+    try {
+      await updateAccount(account.id, { monthlyResetEnabled: !account.monthlyResetEnabled })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function saveLimit() {
+    setSaving(true)
+    try {
+      const v = monthlyLimitInput === '' ? null : Number(monthlyLimitInput)
+      await updateAccount(account.id, { monthlyLimit: v })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="account-manager-item-wrap">
+      <div className="account-manager-item">
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: account.color, display: 'inline-block' }} />
+          {account.name}
+        </span>
+        <span style={{ display: 'flex', gap: 12 }}>
+          <button className="icon-btn" onClick={onEditName}>編集</button>
+          {showOptions && (
+            <button className="icon-btn" onClick={() => setOpen(o => !o)}>
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+                {open ? 'expand_less' : 'tune'}
+              </span>
+            </button>
+          )}
+        </span>
+      </div>
+
+      {open && showOptions && (
+        <div className="account-options">
+          {settings?.monthlyResetEnabled && (
+            <div className="account-options__row">
+              <div>
+                <div className="settings-row__title">毎月表示リセット</div>
+                <div className="settings-row__desc">実際の残高は変えず、表示だけ毎月0円からにする</div>
+              </div>
+              <label className="switch">
+                <input type="checkbox" checked={!!account.monthlyResetEnabled} onChange={toggleReset} disabled={saving} />
+                <span className="switch__track" />
+              </label>
+            </div>
+          )}
+          {settings?.monthlyLimitEnabled && (
+            <div className="account-options__row account-options__row--column">
+              <div className="settings-row__title">毎月の上限（クレジット）</div>
+              <div className="settings-row__desc">超えても使用は止めず、マイナス表示になるだけです</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="例：30000（空欄で上限なし）"
+                  value={monthlyLimitInput}
+                  onChange={e => setMonthlyLimitInput(e.target.value)}
+                  style={{ flex: 1, border: '1px solid var(--paper-line)', borderRadius: 8, padding: '9px 10px' }}
+                />
+                <button className="chip chip--active" onClick={saveLimit} disabled={saving}>保存</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function AccountManagerModal({ accounts, settings, onClose }) {
   const { addAccount, updateAccount, deleteAccount } = useData()
   const [name, setName] = useState('')
   const [color, setColor] = useState(COLORS[0])
@@ -29,13 +112,18 @@ export default function AccountManagerModal({ accounts, onClose }) {
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={e => e.stopPropagation()}>
-        <div className="sheet__handle" />
-        <div className="sheet__title">口座（ジャンル）の管理</div>
+        <div className="sheet__handle" onClick={onClose} />
+        <div className="sheet__title-row">
+          <div className="sheet__title" style={{ flex: 1 }}>口座（ジャンル）の管理</div>
+          <button className="icon-btn" onClick={onClose} aria-label="閉じる">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
 
         <div className="account-manager-list">
           {accounts.map(a => (
-            <div className="account-manager-item" key={a.id}>
-              {editingId === a.id ? (
+            editingId === a.id ? (
+              <div className="account-manager-item" key={a.id}>
                 <input
                   type="text"
                   defaultValue={a.name}
@@ -44,23 +132,13 @@ export default function AccountManagerModal({ accounts, onClose }) {
                   onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur() }}
                   style={{ border: '1px solid var(--paper-line)', borderRadius: 8, padding: '6px 10px', flex: 1 }}
                 />
-              ) : (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: a.color, display: 'inline-block' }} />
-                  {a.name}
+                <span style={{ display: 'flex', gap: 12 }}>
+                  <button className="icon-btn" onClick={() => handleDelete(a.id)}>削除</button>
                 </span>
-              )}
-              <span style={{ display: 'flex', gap: 12 }}>
-                <button className="icon-btn" onClick={() => setEditingId(a.id)}>
-                  <span className="material-symbols-outlined">edit</span>
-                  編集
-                </button>
-                <button className="icon-btn" onClick={() => handleDelete(a.id)}>
-                  <span className="material-symbols-outlined">delete</span>
-                  削除
-                </button>
-              </span>
-            </div>
+              </div>
+            ) : (
+              <AccountRow key={a.id} account={a} settings={settings} onEditName={() => setEditingId(a.id)} />
+            )
           ))}
         </div>
 

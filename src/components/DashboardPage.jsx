@@ -16,6 +16,10 @@ export default function DashboardPage({ accounts, categories, transactions, sele
     ? 'すべての口座'
     : (accounts.find(a => a.id === selectedAccount)?.name || '')
 
+  const currentAccount = selectedAccount === ALL_ACCOUNT_ID
+    ? null
+    : accounts.find(a => a.id === selectedAccount)
+
   const recent = [...scoped].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5)
   const pieData = useMemo(
     () => categoryBreakdown(transactions, selectedAccount, categories),
@@ -24,7 +28,13 @@ export default function DashboardPage({ accounts, categories, transactions, sele
 
   return (
     <div>
-      <BalanceCard label={label} balance={balance} income={monthIncome} expense={monthExpense} />
+      <BalanceCard
+        label={label}
+        account={currentAccount}
+        realBalance={balance}
+        income={monthIncome}
+        expense={monthExpense}
+      />
 
       <div className="section-head">
         <h2>直近の取引</h2>

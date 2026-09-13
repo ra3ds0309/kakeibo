@@ -64,3 +64,11 @@ export function categoryBreakdown(transactions, accountId, categories) {
     })
     .sort((a, b) => b.value - a.value)
 }
+
+// 「毎月表示リセット」が有効な口座の表示用残高。
+// 実際の残高(realBalance)自体は変えず、直近のリセット時点との差分だけを表示する。
+export function computeDisplayBalance(account, realBalance) {
+  if (!account?.monthlyResetEnabled || !account?.resetBaseline) return realBalance
+  return realBalance - (Number(account.resetBaseline.amount) || 0)
+}
+
