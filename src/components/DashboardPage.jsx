@@ -1,8 +1,13 @@
 import { useMemo } from 'react'
 import BalanceCard from './BalanceCard'
+import LastMonthCard from './LastMonthCard'
 import TransactionRow from './TransactionRow'
 import CategoryPieChart from './CategoryPieChart'
-import { computeBalance, filterByAccount, categoryBreakdown, isThisMonth, ALL_ACCOUNT_ID } from '../utils/calc'
+import MonthlyTrendChart from './MonthlyTrendChart'
+import {
+  computeBalance, filterByAccount, categoryBreakdown, isThisMonth,
+  isLastMonth, lastMonthLabel, monthlySummary, monthlyTrend, ALL_ACCOUNT_ID
+} from '../utils/calc'
 
 export default function DashboardPage({ accounts, categories, transactions, selectedAccount, onSelectTx }) {
   const scoped = filterByAccount(transactions, selectedAccount)
@@ -11,6 +16,11 @@ export default function DashboardPage({ accounts, categories, transactions, sele
   const monthTx = scoped.filter(t => isThisMonth(t.date))
   const monthIncome = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
   const monthExpense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+
+  const lastMonth = useMemo(
+    () => monthlySummary(transactions, selectedAccount, isLastMonth),
+    [transactions, selectedAccount]
+  )
 
   const label = selectedAccount === ALL_ACCOUNT_ID
     ? 'すべての口座'
@@ -21,9 +31,18 @@ export default function DashboardPage({ accounts, categories, transactions, sele
     : accounts.find(a => a.id === selectedAccount)
 
   const recent = [...scoped].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 5)
-  const pieData = useMemo(
-    () => categoryBreakdown(transactions, selectedAccount, categories),
+
+  const expensePieData = useMemo(
+    () => categoryBreakdown(transactions, selectedAccount, categories, 'expense'),
     [transactions, selectedAccount, categories]
+  )
+  const incomePieData = useMemo(
+    () => categoryBreakdown(transactions, selectedAccount, categories, 'income'),
+    [transactions, selectedAccount, categories]
+  )
+  const trendData = useMemo(
+    () => monthlyTrend(transactions, selectedAccount, 6),
+    [transactions, selectedAccount]
   )
 
   return (
@@ -35,6 +54,8 @@ export default function DashboardPage({ accounts, categories, transactions, sele
         income={monthIncome}
         expense={monthExpense}
       />
+
+      <LastMonthCard label={lastMonthLabel()} income={lastMonth.income} expense={lastMonth.expense} />
 
       <div className="section-head">
         <h2>直近の取引</h2>
@@ -49,7 +70,17 @@ export default function DashboardPage({ accounts, categories, transactions, sele
       <div className="section-head">
         <h2>今月の支出内訳</h2>
       </div>
-      <CategoryPieChart data={pieData} />
+      <CategoryPieChart data={expensePieData} />
+
+      <div className="section-head">
+        <h2>今月の収入内訳</h2>
+      </div>
+      <CategoryPieChart data={incomePieData} />
+
+      <div className="section-head">
+        <h2>直近6か月の推移</h2>
+      </div>
+      <MonthlyTrendChart data={trendData} />
     </div>
   )
 }

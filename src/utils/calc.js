@@ -1,6 +1,7 @@
 // 口座（accountId）ごとの残高・集計ロジック。
 // 振替(transfer)は from(accountId) -> to(toAccountId) の移動として記録する。
 // 「すべて」を選んだ場合は振替は内部移動として相殺し、収入合計-支出合計のみが残高になる。
+import { monthKey } from './format'
 
 export const ALL_ACCOUNT_ID = '__all__'
 
@@ -46,9 +47,46 @@ export function isThisMonth(dateStr) {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
 }
 
-export function categoryBreakdown(transactions, accountId, categories) {
+export function isLastMonth(dateStr) {
+  const now = new Date()
+  const target = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const d = new Date(dateStr)
+  return d.getFullYear() === target.getFullYear() && d.getMonth() === target.getMonth()
+}
+
+export function lastMonthLabel() {
+  const now = new Date()
+  const target = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  return `${target.getMonth() + 1}月`
+}
+
+// 指定した月判定関数（isThisMonth / isLastMonth など）に合う範囲の収入・支出合計
+export function monthlySummary(transactions, accountId, monthPredicate) {
+  const scoped = filterByAccount(transactions, accountId).filter(t => monthPredicate(t.date))
+  const income = scoped.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+  const expense = scoped.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+  return { income, expense }
+}
+
+// 直近 monthsCount か月分（当月含む）の収入・支出の推移
+export function monthlyTrend(transactions, accountId, monthsCount = 6) {
   const scoped = filterByAccount(transactions, accountId)
-    .filter(t => t.type === 'expense' && isThisMonth(t.date))
+  const now = new Date()
+  const result = []
+  for (let i = monthsCount - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const monthTx = scoped.filter(t => monthKey(t.date) === key)
+    const income = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    const expense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0)
+    result.push({ key, label: `${d.getMonth() + 1}月`, income, expense })
+  }
+  return result
+}
+
+export function categoryBreakdown(transactions, accountId, categories, type = 'expense') {
+  const scoped = filterByAccount(transactions, accountId)
+    .filter(t => t.type === type && isThisMonth(t.date))
 
   const totals = {}
   for (const t of scoped) {

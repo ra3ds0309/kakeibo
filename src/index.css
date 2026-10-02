@@ -1109,3 +1109,50 @@ p {
 .bottom-nav__icon.material-symbols-outlined {
   font-size: 22px;
 }
+
+/* ---- last month summary card ---- */
+.last-month-card {
+  margin: 0 20px 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.last-month-card__title {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+
+.last-month-card__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.last-month-card__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.last-month-card__label {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.last-month-card__value {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.last-month-card__value--income { color: var(--income); }
+.last-month-card__value--expense { color: var(--expense); }
+
+/* 複数のグラフカードを連続表示するときの下余白 */
+.chart-card {
+  margin-bottom: 20px;
+}
